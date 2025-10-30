@@ -1,0 +1,34 @@
+FROM node:14.21.3
+
+MAINTAINER Filestack
+
+USER root
+RUN sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list \
+ && sed -i '/security.debian.org/d' /etc/apt/sources.list \
+ && apt-get update
+
+
+RUN apt-get install -y apt-utils inotify-tools
+RUN npm install -g nodemon
+
+
+RUN mkdir -p /home/node/corsair
+RUN chown node /home/node/corsair
+ENV CHOKIDAR_USEPOLLING=true
+
+RUN groupmod -g 1001 node \
+  && usermod -u 1001 -g 1001 node
+
+USER node
+
+ADD ./ /home/node/corsair
+WORKDIR /home/node/corsair
+
+ENV NODE_ENV=development
+
+
+RUN cd /home/node/corsair && npm install --force
+
+EXPOSE 4000
+
+CMD ["npm", "run", "dev"]
