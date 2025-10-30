@@ -1,0 +1,56 @@
+FROM python:3.6.15-slim-buster
+
+# Set maintainer label
+LABEL maintainer="nnkps"
+
+# Set GitHub token as build argument
+ARG GITHUB_TOKEN
+
+# Set project directory
+ENV PROJECT_DIR=/app
+
+# Create project directory
+RUN mkdir -p $PROJECT_DIR
+WORKDIR $PROJECT_DIR
+
+# Copy requirements file
+COPY ./requirements.txt $PROJECT_DIR/requirements.txt
+
+# Update apt sources and install dependencies
+# Update apt sources and install dependencies
+RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid && \
+    apt-get update -o Acquire::Check-Valid-Until=false && \
+    apt-get install -y --allow-unauthenticated \
+        git nginx libpq-dev build-essential postgresql-client ca-certificates && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r $PROJECT_DIR/requirements.txt && \
+    pip install --no-cache-dir -U git+https://${GITHUB_TOKEN}:x-oauth-basic@github.com/filepicker/python_utils.git@0.1.12.2
+
+
+
+
+
+# Copy application code
+COPY ./app $PROJECT_DIR
+COPY ./run_tests.sh /run_tests.sh
+COPY ./run_dev_server.sh /run_dev_server.sh
+COPY ./run_prod_server.sh /run_prod_server.sh
+COPY ./run_exporter.sh /run_exporter.sh
+
+# Set executable permissions
+RUN chmod +x /run_tests.sh /run_dev_server.sh /run_prod_server.sh /run_exporter.sh
+
+# Copy Nginx configuration
+COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY ./metrics_nginx.conf /etc/nginx/sites-available/
+RUN ln -s /etc/nginx/sites-available/metrics_nginx.conf /etc/nginx/sites-enabled
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+# Expose port
+EXPOSE 8000
+
+# Command to run the development server
+CMD ["/run_dev_server.sh"]
+
+                                          
